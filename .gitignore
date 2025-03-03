@@ -1,0 +1,28 @@
+# Rust build files
+/target/
+/Cargo.lock
+
+# Dart & Flutter build files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+pubspec.lock
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Bindings
+bindings.h
+bindings.dart
+
+# Models
+models/
+
+# Tokenizer
+tokenizer/
