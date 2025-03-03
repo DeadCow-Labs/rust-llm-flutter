@@ -47,7 +47,7 @@ fn load_config_from_hub(model_id: &str) -> Result<Config> {
     let config_json: Value = serde_json::from_str(&config_str)
         .map_err(|e| candle_core::Error::Msg(format!("JSON parse error: {}", e)))?;
     
-    // Load config values dynamically from the model's config file
+    // Optimize config for mobile inference
     let config = Config {
         hidden_size: config_json["hidden_size"]
             .as_i64()
@@ -66,21 +66,20 @@ fn load_config_from_hub(model_id: &str) -> Result<Config> {
             .ok_or_else(|| candle_core::Error::Msg("missing num_attention_heads".to_string()))? as usize,
         num_key_value_heads: config_json["num_key_value_heads"]
             .as_i64()
-            .unwrap_or(config_json["num_attention_heads"].as_i64().unwrap_or(32)) as usize, // fallback to num_attention_heads
+            .unwrap_or(config_json["num_attention_heads"].as_i64().unwrap_or(32)) as usize,
         rms_norm_eps: config_json["rms_norm_eps"]
             .as_f64()
             .unwrap_or(1e-5),
         rope_theta: config_json["rope_theta"]
             .as_f64()
             .unwrap_or(10000.0) as f32,
-        use_flash_attn: false,  // Always false for mobile CPU
+        use_flash_attn: false,  // Disabled flash attention since it's not compiled in
     };
     
     Ok(config)
 }
 
 pub fn load_model(model_name: &str) -> Result<Model> {
-    // Always use CPU for mobile
     let device = Device::Cpu;
     println!("Using device: {:?}", device);
     
@@ -96,19 +95,19 @@ pub fn load_model(model_name: &str) -> Result<Model> {
     download_if_needed(model_name, "tokenizer.json", &tokenizer_path)?;
     download_if_needed(model_name, "config.json", &config_path)?;
 
-    // Load tokenizer
     let tokenizer = Tokenizer::from_file(&tokenizer_path)
         .map_err(|e| candle_core::Error::Msg(format!("Failed to load tokenizer: {}", e)))?;
 
-    // Load config dynamically from the model's config
     let config = load_config_from_hub(model_name)?;
     
-    // Use F16 for reduced memory usage
+    // Use F16 with optimized cache
     let cache = Cache::new(true, DType::F16, &config, &device)?;
     
+    // Load model with F16 precision
     let vb = unsafe {
         VarBuilder::from_mmaped_safetensors(&[model_path], DType::F16, &device)?
     };
+    
     let model = Llama::load(vb, &cache, &config)?;
 
     Ok(Model { model, tokenizer, cache, config })

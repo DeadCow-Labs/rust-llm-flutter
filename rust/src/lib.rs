@@ -5,16 +5,45 @@ mod tokenizer;
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
-use model::load_model;
+use std::sync::Once;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+use model::{Model, load_model};
+use inference::run_inference;
 use downloader::download_if_needed;
 
+// Global model instance
+lazy_static! {
+    pub(crate) static ref MODEL: Mutex<Option<Model>> = Mutex::new(None);
+}
+static INIT: Once = Once::new();
+
 #[no_mangle]
-pub extern "C" fn load_model_ffi(model_name: *const c_char) -> *mut c_char {
-    let model_str = unsafe { CStr::from_ptr(model_name).to_str().unwrap() };
+pub extern "C" fn load_model_c(model_name: *const c_char) -> *mut c_char {
+    let model_str = unsafe { 
+        if model_name.is_null() {
+            return CString::new("Model name is null").unwrap().into_raw();
+        }
+        match CStr::from_ptr(model_name).to_str() {
+            Ok(s) => s,
+            Err(_) => return CString::new("Invalid model name string").unwrap().into_raw(),
+        }
+    };
     
+    println!("Loading model: {}", model_str);
+    
+    // Initialize model only once
     match load_model(model_str) {
-        Ok(_) => CString::new("Model loaded successfully").unwrap().into_raw(),
-        Err(e) => CString::new(format!("Error: {:?}", e)).unwrap().into_raw(),
+        Ok(model) => {
+            let mut model_ref = MODEL.lock().unwrap();
+            *model_ref = Some(model);
+            println!("Model loaded successfully");
+            CString::new("Model loaded successfully").unwrap().into_raw()
+        },
+        Err(e) => {
+            println!("Error loading model: {:?}", e);
+            CString::new(format!("Failed to load model: {:?}", e)).unwrap().into_raw()
+        }
     }
 }
 
@@ -22,25 +51,19 @@ pub extern "C" fn load_model_ffi(model_name: *const c_char) -> *mut c_char {
 pub extern "C" fn run_inference_c(input: *const c_char) -> *mut c_char {
     let input_str = unsafe {
         if input.is_null() {
-            return CString::new("Error: Null input")
-                .unwrap_or_default()
-                .into_raw();
+            return CString::new("Input is null").unwrap().into_raw();
         }
         match CStr::from_ptr(input).to_str() {
             Ok(s) => s,
-            Err(_) => return CString::new("Error: Invalid UTF-8")
-                .unwrap_or_default()
-                .into_raw(),
+            Err(_) => return CString::new("Invalid input string").unwrap().into_raw(),
         }
     };
-    
-    match inference::run_inference(input_str) {
-        Ok(output) => CString::new(output)
-            .unwrap_or_default()
-            .into_raw(),
-        Err(e) => CString::new(format!("Error: {}", e))
-            .unwrap_or_default()
-            .into_raw(),
+
+    println!("Running inference with input: {}", input_str);
+
+    match run_inference(input_str) {
+        Ok(output) => CString::new(output).unwrap().into_raw(),
+        Err(e) => CString::new(format!("Inference error: {:?}", e)).unwrap().into_raw(),
     }
 }
 
