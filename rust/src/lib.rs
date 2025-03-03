@@ -32,7 +32,16 @@ pub extern "C" fn load_model_c(model_name: *const c_char) -> *mut c_char {
     
     println!("Loading model: {}", model_str);
     
-    // Initialize model only once
+    // Clear existing model first
+    {
+        let mut model_ref = match MODEL.lock() {
+            Ok(guard) => guard,
+            Err(_) => return CString::new("Failed to acquire model lock").unwrap().into_raw(),
+        };
+        *model_ref = None;  // Clear existing model
+    }
+    
+    // Load new model
     match load_model(model_str) {
         Ok(model) => {
             let mut model_ref = MODEL.lock().unwrap();
