@@ -6,7 +6,7 @@ mod tokenizer;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use model::load_model;
-use downloader::download_model;
+use downloader::download_if_needed;
 
 #[no_mangle]
 pub extern "C" fn load_model_ffi(model_name: *const c_char) -> *mut c_char {
@@ -47,8 +47,9 @@ pub extern "C" fn run_inference_c(input: *const c_char) -> *mut c_char {
 #[no_mangle]
 pub extern "C" fn download_model_ffi(model_name: *const c_char) -> *mut c_char {
     let model_str = unsafe { CStr::from_ptr(model_name).to_str().unwrap() };
+    let save_path = std::path::Path::new("models").join(model_str);
 
-    match download_model(model_str) {
+    match download_if_needed(model_str, "model.safetensors", &save_path) {
         Ok(_) => CString::new("Download complete").unwrap().into_raw(),
         Err(e) => CString::new(format!("Download failed: {:?}", e)).unwrap().into_raw(),
     }
