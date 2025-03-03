@@ -56,7 +56,7 @@ Typical performance metrics on recent devices:
 - ~600MB storage for model files
 
 ## 📝 License
-[Your chosen license]
+MIT License
 
 ## 🤝 Contributing
 Contributions welcome! Please read our contributing guidelines.
