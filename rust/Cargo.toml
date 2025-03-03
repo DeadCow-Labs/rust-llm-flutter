@@ -3,12 +3,21 @@ name = "llm_runner"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
 [dependencies]
 # LLM inference framework (Example: candle or ggml-based)
 candle-core = "0.3.1"
 candle-nn = "0.3.1"
 candle-transformers = "0.3"
 tokenizers = "0.14"  # Handles tokenization
+lazy_static = "1.4.0"
+rayon = "1.8"
 
 # FFI for Dart bindings
 jni = "0.21.0"

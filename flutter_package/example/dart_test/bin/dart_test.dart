@@ -1,54 +1,49 @@
-import 'dart:ffi' as ffi;
-import 'package:path/path.dart' as path;
-import 'dart:io' show Platform, Directory;
+import 'dart:ffi';
+import 'dart:io';
 import 'package:ffi/ffi.dart';
+import 'package:path/path.dart' as path;
 
-String _getLibraryName() {
-  if (Platform.isMacOS) return 'libllm_runner.dylib';
-  if (Platform.isWindows) return 'llm_runner.dll';
-  return 'libllm_runner.so';
-}
+typedef LoadModelC = Pointer<Utf8> Function(Pointer<Utf8>);
+typedef RunInferenceC = Pointer<Utf8> Function(Pointer<Utf8>);
+typedef FreeStringC = void Function(Pointer<Utf8>);
+typedef FreeStringRust = Void Function(Pointer<Utf8>);
 
 void main() {
-  final currentDir = Directory.current.path;
-  final parentDir = path.dirname(currentDir);
-  final flutterPackageDir = path.dirname(parentDir);
-  final projectDir = path.dirname(flutterPackageDir);
-  
+  // Load the dynamic library from the release build
   final libraryPath = path.join(
-    projectDir,
+    Directory.current.parent.parent.parent.path,
     'rust',
-    'target/debug',
-    _getLibraryName(),
+    'target',
+    'release',  // Using release build for better performance
+    'libllm_runner.dylib',
   );
-  
   print('Looking for library at: $libraryPath');
   
-  try {
-    final dylib = ffi.DynamicLibrary.open(libraryPath);
-    print('Library loaded successfully!');
-    
-    // Use correct FFI types
-    final runInference = dylib.lookupFunction<
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Char>),
-      ffi.Pointer<ffi.Char> Function(ffi.Pointer<ffi.Char>)
-    >('run_inference_c');
-    
-    // Convert input string to C string
-    final input = "Hello, AI!".toNativeUtf8();
-    
-    // Run inference
-    final result = runInference(input.cast<ffi.Char>());
-    
-    // Convert result back to Dart string
-    final output = result.cast<Utf8>().toDartString();
-    print('Inference result: $output');
-    
-    // Free memory
-    calloc.free(input);
-    calloc.free(result);
-    
-  } catch (e) {
-    print('Error: $e');
-  }
+  final dylib = DynamicLibrary.open(libraryPath);
+  print('Library loaded successfully!');
+
+  // Get function references
+  final loadModel = dylib.lookupFunction<LoadModelC, LoadModelC>('load_model_c');
+  final runInference = dylib.lookupFunction<RunInferenceC, RunInferenceC>('run_inference_c');
+  final freeString = dylib.lookupFunction<FreeStringRust, FreeStringC>('free_string');
+
+  // First load the model
+  final modelName = "TinyLlama/TinyLlama-1.1B-Chat-v0.6".toNativeUtf8();
+  final loadResult = loadModel(modelName);
+  final loadResultString = loadResult.toDartString();
+  print('Load result: $loadResultString');
+  
+  // Free the strings
+  calloc.free(modelName);
+  freeString(loadResult);
+
+  // Then run inference
+  final input = "Tell me a short joke".toNativeUtf8();
+  final result = runInference(input);
+  final resultString = result.toDartString();
+  print('Inference result: $resultString');
+  
+  // Free the strings
+  calloc.free(input);
+  freeString(result);
 }

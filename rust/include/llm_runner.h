@@ -8,7 +8,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-char *load_model_ffi(const char *model_name);
+char *load_model_c(const char *model_name);
 
 char *run_inference_c(const char *input);
 
