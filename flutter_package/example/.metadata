@@ -1,0 +1,9 @@
+version:
+  revision: "stable"
+  channel: "stable"
+
+project_type: app
+
+platforms:
+  ios: true
+  android: false 

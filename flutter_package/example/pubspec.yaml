@@ -1,0 +1,14 @@
+name: llm_runner_example
+description: Example app for LLM Runner
+version: 1.0.0
+
+environment:
+  sdk: '^3.7.0'
+
+dependencies:
+  path: ^1.8.0
+  ffi: ^2.0.1
+  # ... other dependencies 
+
+dev_dependencies:
+  lints: ^2.0.0 

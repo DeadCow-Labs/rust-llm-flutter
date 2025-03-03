@@ -1,23 +1,29 @@
 [package]
 name = "llm_runner"
 version = "0.1.0"
-edition = "2025"
+edition = "2021"
 
 [dependencies]
 # LLM inference framework (Example: candle or ggml-based)
 candle-core = "0.3"
+candle-nn = "0.3"
 candle-transformers = "0.3"
 tokenizers = "0.14"  # Handles tokenization
 
 # FFI for Dart bindings
 jni = "0.21.0"
-cbindgen = "0.26.0"
 
 # Async + HTTP for downloading models
 tokio = { version = "1", features = ["full"] }
 reqwest = { version = "0.11", features = ["blocking", "json"] }
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+
+# Hugging Face Hub
+hf-hub = "0.3.0"
+
+[build-dependencies]
+cbindgen = "0.26.0"
 
 [lib]
 crate-type = ["cdylib"]  # Make it compatible with Flutter/Dart FFI
