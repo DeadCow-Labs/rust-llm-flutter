@@ -1,6 +1,6 @@
 # Rust build files
-/target/
-/Cargo.lock
+rust/target/
+Cargo.lock
 
 # Dart & Flutter build files
 .dart_tool/
@@ -26,3 +26,15 @@ models/
 
 # Tokenizer
 tokenizer/
+
+# Example
+example/.dart_tool/
+example/build/
+example/ios/Pods/
+example/android/.gradle/
+example/dart_test/
+example/pubspec.lock
+
+# Test artifacts
+**/test/coverage/
+**/test/reports/
