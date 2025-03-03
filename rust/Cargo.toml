@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 # LLM inference framework (Example: candle or ggml-based)
-candle-core = "0.3"
-candle-nn = "0.3"
+candle-core = "0.3.1"
+candle-nn = "0.3.1"
 candle-transformers = "0.3"
 tokenizers = "0.14"  # Handles tokenization
 
