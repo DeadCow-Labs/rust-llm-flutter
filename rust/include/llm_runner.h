@@ -8,13 +8,13 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+char *download_model_c(const char *model_name);
+
 char *load_model_c(const char *model_name);
 
 char *run_inference_c(const char *input);
 
-char *download_model_ffi(const char *model_name);
-
-void free_string(char *ptr);
+void free_string_c(char *s);
 
 uint32_t *tokenize_text_c(const char *text, uintptr_t *length);
 

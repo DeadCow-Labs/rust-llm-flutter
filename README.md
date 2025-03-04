@@ -23,32 +23,67 @@ dependencies:
 ```dart
 import 'package:llm_runner/llm_runner.dart';
 
-// Generate text with TinyLlama
+// Use a pre-configured model
 final response = await LlmRunner.generateText(
-  model: LlmRunner.tinyllama,
+  model: Models.tinyllama,  // Small, fast model
   prompt: "Tell me a joke",
 );
-print(response);
 
-// Switch to Phi-1.5 for math
+// Switch to a more powerful model
 final mathResponse = await LlmRunner.generateText(
-  model: LlmRunner.phi15,
-  prompt: "What is 2+2?",
+  model: Models.mistral7b,  // Better at complex tasks
+  prompt: "Explain quantum computing",
 );
-print(mathResponse);
+
+// Use your own custom model
+final customModel = Models.custom(
+  name: 'deepseek-ai/deepseek-math-7b-instruct',
+  minRamMb: 8192,
+  description: 'Specialized for mathematics',
+);
+
+final mathResult = await LlmRunner.generateText(
+  model: customModel,
+  prompt: "Solve: ∫x²dx",
+);
 ```
 
-## 🔧 Available Models
+## 📱 Available Models
 
-- **TinyLlama**: Great for general text generation
-  ```dart
-  LlmRunner.tinyllama
-  ```
+### Small Models (4GB+ RAM)
+- `Models.tinyllama` - Fast, lightweight
+- `Models.phi2` - Good at coding
+- `Models.gemma2b` - Google's efficient model
 
-- **Phi-1.5**: Excellent for math and reasoning
-  ```dart
-  LlmRunner.phi15
-  ```
+### Medium Models (6GB+ RAM)
+- `Models.llama32_3b` - Latest Llama 3.2
+- `Models.mistral7b` - Powerful open-source
+
+### Large Models (8GB+ RAM)
+- `Models.qwen7b` - High-quality multilingual
+
+### Custom Models
+Use any compatible model:
+```dart
+final myModel = Models.custom(
+  name: 'organization/model-name',
+  minRamMb: 6144,
+  description: 'My custom model',
+  metadata: {
+    'type': 'instruct',
+    'language': 'multilingual',
+  },
+);
+```
+
+## 🔍 Model Compatibility
+
+Models should be:
+1. GGUF format compatible
+2. Within device memory constraints
+3. Properly structured (tokenizer, weights, etc.)
+
+See [MODELS.md](MODELS.md) for a full list of tested models.
 
 ## 🚦 Advanced Usage
 
