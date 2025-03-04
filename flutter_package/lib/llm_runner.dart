@@ -3,13 +3,19 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:path/path.dart' as path;
 import 'src/bindings.dart';
+import 'src/models_config.dart';  // Import everything from models_config
 
 class LlmRunner {
-  static final tinyllama = ModelConfig('TinyLlama/TinyLlama-1.1B-Chat-v0.6');
-  static final phi15 = ModelConfig('microsoft/phi-1_5');
-
-  static ModelConfig _currentModel = tinyllama;
+  // Remove the static model definitions since they're now in Models class
+  static ModelConfig _currentModel = Models.tinyllama;  // Default to TinyLlama
   static bool _isModelLoaded = false;
+  static bool _isInitialized = false;
+
+  static late final DynamicLibrary _lib;
+  static late final LoadModel _loadModelFn;
+  static late final RunInference _runInferenceFn;
+  static late final FreeString _freeStringFn;
+  static late final DownloadModel _downloadModelFn;
 
   static Future<String> generateText({
     required ModelConfig model,
@@ -20,7 +26,6 @@ class LlmRunner {
     print('Current model: ${_currentModel.name}');
     print('Is model loaded: $_isModelLoaded');
     
-    // Check if we need to switch models
     if (_currentModel != model || !_isModelLoaded) {
       print('Need to switch models');
       print('Switching from ${_currentModel.name} to ${model.name}');
@@ -35,11 +40,11 @@ class LlmRunner {
     try {
       print('Running inference...');
       final input = prompt.toNativeUtf8();
-      final resultPtr = _runInference(input) as Pointer<Utf8>;
+      final resultPtr = _runInferenceFn(input);
       final response = resultPtr.toDartString();
       
       calloc.free(input);
-      _freeString(resultPtr);
+      _freeStringFn(resultPtr);
       
       return response;
     } catch (e) {
@@ -49,36 +54,29 @@ class LlmRunner {
   }
 
   // Private methods
-  static bool _isInitialized = false;
-  static late final DynamicLibrary _lib;
-  static late final LoadModelC _loadModelFn;
-  static late final RunInferenceC _runInference;
-  static late final FreeStringC _freeString;
-  static late final DownloadModelC _downloadModelFn;
-
   static Future<void> _switchModel(ModelConfig model) async {
     print('\n=== Switching Model ===');
     print('Target model: ${model.name}');
+    print('Required RAM: ${model.minRamMb}MB');
+    if (model.description.isNotEmpty) {
+      print('Description: ${model.description}');
+    }
     
     await _initializeIfNeeded();
     
     try {
-      // First, download the model if needed
-      print('Downloading model if needed: ${model.name}');
-      final downloadPtr = _downloadModelFn(model.name.toNativeUtf8());
+      final modelNamePtr = model.name.toNativeUtf8();
+      final downloadPtr = _downloadModelFn(modelNamePtr);
       final downloadResult = downloadPtr.toDartString();
       print('Download result: $downloadResult');
-      _freeString(downloadPtr);
+      _freeStringFn(downloadPtr);
 
-      // Then load the model
-      print('Loading model: ${model.name}');
-      final modelName = model.name.toNativeUtf8();
-      final loadResultPtr = _loadModelFn(modelName);
+      final loadResultPtr = _loadModelFn(modelNamePtr);
       final loadResult = loadResultPtr.toDartString();
       print('Load result: $loadResult');
       
-      calloc.free(modelName);
-      _freeString(loadResultPtr);
+      calloc.free(modelNamePtr);
+      _freeStringFn(loadResultPtr);
       
       print('Model switch complete');
     } catch (e) {
@@ -92,10 +90,10 @@ class LlmRunner {
 
     _lib = DynamicLibrary.open(_getLibraryPath());
     
-    _loadModelFn = _lib.lookupFunction<LoadModelC, LoadModelC>('load_model_c');
-    _runInference = _lib.lookupFunction<RunInferenceC, RunInferenceC>('run_inference_c');
-    _freeString = _lib.lookupFunction<FreeStringRust, FreeStringC>('free_string');
-    _downloadModelFn = _lib.lookupFunction<DownloadModelC, DownloadModelC>('download_model_ffi');
+    _loadModelFn = _lib.lookupFunction<LoadModelC, LoadModel>('load_model_c');
+    _runInferenceFn = _lib.lookupFunction<RunInferenceC, RunInference>('run_inference_c');
+    _freeStringFn = _lib.lookupFunction<FreeStringC, FreeString>('free_string_c');
+    _downloadModelFn = _lib.lookupFunction<DownloadModelC, DownloadModel>('download_model_c');
 
     _isInitialized = true;
   }
@@ -153,36 +151,38 @@ Current directory: ${currentDir.path}
 ''');
   }
 
-  /// Downloads a model (TinyLlama, Phi-1.5, etc.)
-  static Future<void> downloadModel(String modelName) async {
-    final modelNamePtr = modelName.toNativeUtf8();
-    final resultPtr = _loadModelFn(modelNamePtr);
+  /// Downloads a model if not already present
+  static Future<void> downloadModel(ModelConfig model) async {
+    await _initializeIfNeeded();
+    final modelNamePtr = model.name.toNativeUtf8();
+    final resultPtr = _downloadModelFn(modelNamePtr);
     final result = resultPtr.toDartString();
-    print('Download result: $result');
+    print('Download result for ${model.name}: $result');
     
     calloc.free(modelNamePtr);
-    _freeString(resultPtr);
+    _freeStringFn(resultPtr);
   }
 
-  /// Loads a model into memory
-  static Future<void> loadModel(String modelName) async {
-    final modelNamePtr = modelName.toNativeUtf8();
+  /// Pre-loads a model into memory
+  static Future<void> loadModel(ModelConfig model) async {
+    await _initializeIfNeeded();
+    final modelNamePtr = model.name.toNativeUtf8();
     final resultPtr = _loadModelFn(modelNamePtr);
     final result = resultPtr.toDartString();
-    print('Load result: $result');
+    print('Load result for ${model.name}: $result');
     
     calloc.free(modelNamePtr);
-    _freeString(resultPtr);
+    _freeStringFn(resultPtr);
   }
 
   /// Runs inference on the loaded model
   static Future<String> runInference(String prompt) async {
     final promptPtr = prompt.toNativeUtf8();
-    final resultPtr = _runInference(promptPtr);
+    final resultPtr = _runInferenceFn(promptPtr);
     final response = resultPtr.toDartString();
     
     calloc.free(promptPtr);
-    _freeString(resultPtr);
+    _freeStringFn(resultPtr);
     
     return response;
   }

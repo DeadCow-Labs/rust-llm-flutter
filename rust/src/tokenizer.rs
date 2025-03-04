@@ -1,6 +1,5 @@
 use tokenizers::Tokenizer;
 use std::ffi::{c_char, c_void};
-use std::path::Path;
 
 pub fn tokenize(text: &str) -> Result<Vec<u32>, String> {
     let tokenizer = Tokenizer::from_file("path/to/your/tokenizer.json")

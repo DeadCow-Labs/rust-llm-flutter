@@ -12,12 +12,13 @@ strip = true
 
 [dependencies]
 # LLM inference framework (Example: candle or ggml-based)
-candle-core = "0.3.1"
-candle-nn = "0.3.1"
-candle-transformers = "0.3"
-tokenizers = "0.14"  # Handles tokenization
-lazy_static = "1.4.0"
+candle-core = "0.3.3"
+candle-nn = "0.3.3"
+candle-transformers = "0.3.3"
+tokenizers = { version = "0.15", features = ["onig"] }
+lazy_static = "1.4"
 rayon = "1.8"
+dirs = "5.0"
 
 # FFI for Dart bindings
 jni = "0.21.0"
@@ -29,7 +30,7 @@ serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 
 # Hugging Face Hub
-hf-hub = "0.3.0"
+hf-hub = "0.3.2"
 
 [build-dependencies]
 cbindgen = "0.26.0"

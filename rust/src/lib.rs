@@ -8,15 +8,37 @@ use std::os::raw::c_char;
 use std::sync::Once;
 use std::sync::Mutex;
 use lazy_static::lazy_static;
-use model::{Model, load_model};
+use model::Model;
 use inference::run_inference;
 use downloader::download_if_needed;
+use std::error::Error;
+use std::path::{Path, PathBuf};
 
 // Global model instance
 lazy_static! {
-    pub(crate) static ref MODEL: Mutex<Option<Model>> = Mutex::new(None);
+    static ref MODEL: Mutex<Option<Model>> = Mutex::new(None);
 }
 static INIT: Once = Once::new();
+
+#[no_mangle]
+pub extern "C" fn download_model_c(model_name: *const c_char) -> *mut c_char {
+    let model_str = unsafe { 
+        if model_name.is_null() {
+            return CString::new("Model name is null").unwrap().into_raw();
+        }
+        match CStr::from_ptr(model_name).to_str() {
+            Ok(s) => s,
+            Err(_) => return CString::new("Invalid model name string").unwrap().into_raw(),
+        }
+    };
+    
+    println!("Downloading model if needed: {}", model_str);
+    
+    match Model::download_if_needed(model_str) {
+        Ok(_) => CString::new("Download complete").unwrap().into_raw(),
+        Err(e) => CString::new(format!("Download failed: {:?}", e)).unwrap().into_raw(),
+    }
+}
 
 #[no_mangle]
 pub extern "C" fn load_model_c(model_name: *const c_char) -> *mut c_char {
@@ -32,26 +54,14 @@ pub extern "C" fn load_model_c(model_name: *const c_char) -> *mut c_char {
     
     println!("Loading model: {}", model_str);
     
-    // Clear existing model first
-    {
-        let mut model_ref = match MODEL.lock() {
-            Ok(guard) => guard,
-            Err(_) => return CString::new("Failed to acquire model lock").unwrap().into_raw(),
-        };
-        *model_ref = None;  // Clear existing model
-    }
-    
-    // Load new model
-    match load_model(model_str) {
+    match Model::load_from_hub(model_str) {
         Ok(model) => {
             let mut model_ref = MODEL.lock().unwrap();
             *model_ref = Some(model);
-            println!("Model loaded successfully");
             CString::new("Model loaded successfully").unwrap().into_raw()
         },
         Err(e) => {
-            println!("Error loading model: {:?}", e);
-            CString::new(format!("Failed to load model: {:?}", e)).unwrap().into_raw()
+            CString::new(format!("Failed to load model: {}", e)).unwrap().into_raw()
         }
     }
 }
@@ -68,32 +78,27 @@ pub extern "C" fn run_inference_c(input: *const c_char) -> *mut c_char {
         }
     };
 
-    println!("Running inference with input: {}", input_str);
-
-    match run_inference(input_str) {
-        Ok(output) => CString::new(output).unwrap().into_raw(),
-        Err(e) => CString::new(format!("Inference error: {:?}", e)).unwrap().into_raw(),
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn download_model_ffi(model_name: *const c_char) -> *mut c_char {
-    let model_str = unsafe { CStr::from_ptr(model_name).to_str().unwrap() };
-    let save_path = std::path::Path::new("models").join(model_str);
-
-    match download_if_needed(model_str, "model.safetensors", &save_path) {
-        Ok(_) => CString::new("Download complete").unwrap().into_raw(),
-        Err(e) => CString::new(format!("Download failed: {:?}", e)).unwrap().into_raw(),
-    }
-}
-
-#[no_mangle]
-pub extern "C" fn free_string(ptr: *mut c_char) {
-    unsafe {
-        if !ptr.is_null() {
-            let _ = CString::from_raw(ptr);
+    let model_ref = MODEL.lock().unwrap();
+    match &*model_ref {
+        Some(model) => {
+            println!("Got model from global state, running inference...");
+            println!("Input text: {}", input_str);
+            
+            match model.run_inference(input_str) {
+                Ok(output) => CString::new(output).unwrap().into_raw(),
+                Err(e) => CString::new(format!("Inference error: {}", e)).unwrap().into_raw(),
+            }
         }
+        None => CString::new("Model not loaded").unwrap().into_raw(),
     }
+}
+
+#[no_mangle]
+pub extern "C" fn free_string_c(s: *mut c_char) {
+    unsafe {
+        if s.is_null() { return }
+        CString::from_raw(s)
+    };
 }
 
 #[no_mangle]
