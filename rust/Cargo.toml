@@ -10,30 +10,55 @@ codegen-units = 1
 panic = "abort"
 strip = true
 
+[lib]
+name = "llm_runner"
+crate-type = ["staticlib", "cdylib"]
+
 [dependencies]
-# LLM inference framework (Example: candle or ggml-based)
 candle-core = "0.3.3"
 candle-nn = "0.3.3"
 candle-transformers = "0.3.3"
 tokenizers = { version = "0.15", features = ["onig"] }
-lazy_static = "1.4"
-rayon = "1.8"
-dirs = "5.0"
-
-# FFI for Dart bindings
-jni = "0.21.0"
-
-# Async + HTTP for downloading models
-tokio = { version = "1", features = ["full"] }
-reqwest = { version = "0.11", features = ["blocking", "json"] }
+hf-hub = { version = "0.3.2", features = ["online"], default-features = false }
+reqwest = { version = "0.11", features = ["rustls-tls"], default-features = false }
+rustls = { version = "0.21", features = ["dangerous_configuration"] }
+webpki-roots = "0.25"
 serde_json = "1.0"
-serde = { version = "1.0", features = ["derive"] }
+lazy_static = "1.4"
 
-# Hugging Face Hub
-hf-hub = "0.3.2"
+[target.'cfg(target_os = "ios")'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "android")'.dependencies]
+jni = "0.21"
 
 [build-dependencies]
 cbindgen = "0.26.0"
 
-[lib]
-crate-type = ["cdylib"]  # Make it compatible with Flutter/Dart FFI
+[target.aarch64-linux-android]
+linker = "aarch64-linux-android21-clang"
+ar = "llvm-ar"
+
+[target.armv7-linux-androideabi]
+linker = "armv7a-linux-androideabi21-clang"
+ar = "llvm-ar"
+
+[target.x86_64-linux-android]
+linker = "x86_64-linux-android21-clang"
+ar = "llvm-ar"
+
+[target.i686-linux-android]
+linker = "i686-linux-android21-clang"
+ar = "llvm-ar"
+
+[target.aarch64-apple-ios]
+ar = "ar"
+linker = "clang"
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+
+[env]
+ANDROID_NDK_HOME = { value = "/opt/homebrew/share/android-ndk", relative = false }
+TOOLCHAIN = { value = "/opt/homebrew/share/android-ndk/toolchains/llvm/prebuilt/darwin-arm64", relative = false }
