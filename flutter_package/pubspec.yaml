@@ -1,11 +1,15 @@
 name: llm_runner
-description: A Rust-powered library to run AI models locally in Flutter apps.
-version: 0.0.1
-repository: https://github.com/deadcow-labs/rust-llm-flutter
+description: LLM runner for mobile applications
+version: 0.1.0
+homepage: https://github.com/deadcow-labs/rust-llm-flutter
+
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.0.0"
 
 dependencies:
+  flutter:
+    sdk: flutter
   ffi: ^2.1.0
   path: ^1.8.0
 
@@ -24,3 +28,12 @@ ffigen:
   llvm-path:
     - '/usr/local/opt/llvm'
     - '/usr/lib/llvm-14'
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.example.llm_runner
+        pluginClass: LlmRunnerPlugin
+      ios:
+        pluginClass: LlmRunnerPlugin

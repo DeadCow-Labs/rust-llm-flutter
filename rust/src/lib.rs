@@ -97,7 +97,7 @@ pub extern "C" fn run_inference_c(input: *const c_char) -> *mut c_char {
 pub extern "C" fn free_string_c(s: *mut c_char) {
     unsafe {
         if s.is_null() { return }
-        CString::from_raw(s)
+        drop(CString::from_raw(s));
     };
 }
 
